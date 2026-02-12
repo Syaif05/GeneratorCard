@@ -1,8 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import { CreditCard, Menu, X } from 'lucide-react'
+import { CreditCard, Menu, X, Settings2 } from 'lucide-react'
 import { useState } from 'react'
+const Tooltip = ({ text, children }) => (
+  <div className="group relative flex items-center justify-center">
+    {children}
+    <div className="absolute top-full mt-2 hidden group-hover:block w-max px-3 py-1.5 bg-slate-800 text-white text-[11px] font-medium rounded-lg shadow-xl backdrop-blur-sm transition-all z-50 animate-in fade-in zoom-in duration-200">
+      {text}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800"></div>
+    </div>
+  </div>
+)
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)

@@ -5,7 +5,12 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
   title: 'Generator Card - Simulator',
-  description: 'Realistic Identity & Address Generator for Testing',
+  description: 'Generate Credit Cards, Addresses, and Identities',
+  icons: {
+    icon: '/logo.png', // Use the custom logo as the favicon
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  }
 }
 
 import Navbar from '../components/Navbar'
