@@ -89,11 +89,13 @@ export default function ChatGPTTemplate() {
     const accountName = latinNames[Math.floor(Math.random() * latinNames.length)]
     const billingName = koreanNames[Math.floor(Math.random() * koreanNames.length)]
 
-    // 2. PASSWORD (New Logic: FirstName + 4 random)
+    // 2. PASSWORD (New Logic: FirstName + Random Chars, Min Total 12)
     const firstName = accountName.split(' ')[0]
     const chars = "0123456789!@#$%^&*?"
+    const needed = Math.max(4, 12 - firstName.length)
+    
     let suffix = ""
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < needed; i++) {
         suffix += chars.charAt(Math.floor(Math.random() * chars.length))
     }
     const password = `${firstName}${suffix}`

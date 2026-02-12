@@ -16,10 +16,13 @@ const unmaskNumber = (str) => {
 const generatePassword = (fullName) => {
     const firstName = fullName.split(' ')[0]; // Ambil nama depan saja
     const chars = "0123456789!@#$%^&*?"; // Pool angka dan simbol
-    let suffix = "";
     
-    // Loop 4 kali untuk ambil karakter random
-    for (let i = 0; i < 4; i++) {
+    // Hitung sisa karakter yang dibutuhkan agar total minimal 12
+    // Minimal tetap tambah 4 karakter acak meski nama sudah panjang
+    const needed = Math.max(4, 12 - firstName.length);
+    
+    let suffix = "";
+    for (let i = 0; i < needed; i++) {
         suffix += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     
