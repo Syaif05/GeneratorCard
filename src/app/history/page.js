@@ -206,7 +206,8 @@ export default function HistoryPage() {
                                   <div className="md:col-span-2">
                                       <DetailRow label="Billing Name" value={selectedItem.billingName} id="modal_billname" />
                                   </div>
-                                  <DetailRow label="Address" value={`${selectedItem.address.street}, ${selectedItem.address.city}`} id="modal_addr" />
+                                  <DetailRow label="Address" value={selectedItem.address.street} id="modal_addr" />
+                                  <DetailRow label="City" value={selectedItem.address.city} id="modal_city" />
                                   <DetailRow label="Region" value={`${selectedItem.address.province}, ${selectedItem.address.country}`} id="modal_region" />
                                   <DetailRow label="Zip Code" value={selectedItem.address.zip} id="modal_zip" />
                               </div>
