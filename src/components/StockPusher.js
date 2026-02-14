@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { getAdminProducts, pushAdminStock } from '../app/actions/admin' // Import Server Actions
 import { UploadCloud, Check, X, Calendar, Package, Loader2 } from 'lucide-react'
 
 export default function StockPusher({ data, onClose }) {
@@ -16,22 +16,19 @@ export default function StockPusher({ data, onClose }) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
 
   useEffect(() => {
-    fetchProducts()
+    loadProducts()
   }, [])
 
-  const fetchProducts = async () => {
+  const loadProducts = async () => {
       try {
-          const { data, error } = await supabase
-            .from('products')
-            .select('id, name')
-            .eq('product_type', 'account')
-            .order('name')
-          
-          if (error) throw error
-          setProducts(data || [])
+          const result = await getAdminProducts()
+          if (!result.success) {
+             throw new Error(result.error)
+          }
+          setProducts(result.data || [])
       } catch (err) {
           console.error('Error fetching products:', err)
-          setError('Failed to load products from Admin.')
+          setError('Failed to load products from Admin. (Server Action)')
       } finally {
           setLoading(false)
       }
@@ -44,7 +41,6 @@ export default function StockPusher({ data, onClose }) {
 
       try {
           // Prepare payload
-          // We combine all relevant data into account_data JSON
           const accountData = {
               email: data.email,
               password: data.password,
@@ -56,7 +52,6 @@ export default function StockPusher({ data, onClose }) {
               template: data.template
           }
 
-          // Construct Timestamp with current time but selected date
           const now = new Date()
           const [year, month, day] = date.split('-')
           now.setFullYear(year, month - 1, day)
@@ -68,11 +63,10 @@ export default function StockPusher({ data, onClose }) {
               created_at: now.toISOString()
           }
 
-          const { error } = await supabase
-            .from('account_stocks')
-            .insert(payload)
-
-          if (error) throw error
+          const result = await pushAdminStock(payload)
+          if (!result.success) {
+              throw new Error(result.error)
+          }
 
           setSuccess(true)
           
@@ -108,6 +102,9 @@ export default function StockPusher({ data, onClose }) {
                <UploadCloud className="w-4 h-4 text-blue-600" />
                Push to Admin Stock
            </h3>
+           <span className="text-[10px] items-center px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-bold border border-blue-200 hidden sm:inline-flex">
+               SERVER API
+           </span>
        </div>
 
        {error && (
@@ -120,7 +117,7 @@ export default function StockPusher({ data, onClose }) {
        {loading ? (
            <div className="flex items-center justify-center py-4 text-slate-400 gap-2">
                <Loader2 className="w-4 h-4 animate-spin" />
-               <span className="text-xs">Loading products...</span>
+               <span className="text-xs">Connecting to Admin...</span>
            </div>
        ) : (
            <div className="space-y-3">
