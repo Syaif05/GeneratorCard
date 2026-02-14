@@ -31,16 +31,19 @@ const generatePassword = (fullName) => {
 
 export async function fetchSourceData() {
   const { data, error } = await supabase
-    .from('source_data')
-    .select('category, value')
-
+    .from('identity_names')
+    .select('category, val_data')
+  
   if (error) throw error
 
   const pool = { email: [], card: [], name_gender: [] }
 
   data.forEach(item => {
+    // Legacy pool keys (names from admin page might use specific categories)
+    // admin page: name_gender, email, card
+    // DB categories: name_gender, email, card
     if (!pool[item.category]) pool[item.category] = []
-    pool[item.category].push(item.value)
+    pool[item.category].push(item.val_data)
   })
 
   return pool

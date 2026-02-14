@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '../../../lib/supabase'
+import { supabaseAdmin } from '../../../lib/supabase-admin'
 
 export async function POST(request) {
   try {
@@ -9,20 +9,22 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Invalid data format' }, { status: 400 })
     }
 
+    // Filter and map to correct column (val_data)
     const payload = items
       .filter(item => item.trim() !== '')
       .map(item => ({
         category,
-        value: item.trim()
+        val_data: item.trim()
       }))
 
     if (payload.length === 0) {
       return NextResponse.json({ success: false, error: 'No valid items to insert' }, { status: 400 })
     }
 
-    const { error } = await supabase
-      .from('source_data')
-      .upsert(payload, { onConflict: 'category, value', ignoreDuplicates: true })
+    // Using INSERT instead of UPSERT because we don't have a unique constraint on (category, val_data)
+    const { error } = await supabaseAdmin
+      .from('identity_names')
+      .insert(payload)
 
     if (error) throw error
 

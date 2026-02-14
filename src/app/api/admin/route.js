@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '../../../lib/supabase'
+import { supabaseAdmin } from '../../../lib/supabase-admin'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
@@ -10,8 +10,8 @@ export async function GET(request) {
   const from = (page - 1) * limit
   const to = from + limit - 1
 
-  let query = supabase
-    .from('source_data')
+  let query = supabaseAdmin
+    .from('identity_names')
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
@@ -24,9 +24,15 @@ export async function GET(request) {
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
 
+  // Map val_data to value for frontend compatibility
+  const mappedData = data.map(item => ({
+      ...item,
+      value: item.val_data
+  }))
+
   return NextResponse.json({ 
     success: true, 
-    data, 
+    data: mappedData, 
     meta: {
       total: count,
       page,
@@ -37,7 +43,7 @@ export async function GET(request) {
 
 export async function DELETE(request) {
   const { id } = await request.json()
-  const { error } = await supabase.from('source_data').delete().eq('id', id)
+  const { error } = await supabaseAdmin.from('identity_names').delete().eq('id', id)
   
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
@@ -45,7 +51,7 @@ export async function DELETE(request) {
 
 export async function PUT(request) {
   const { id, value } = await request.json()
-  const { error } = await supabase.from('source_data').update({ value }).eq('id', id)
+  const { error } = await supabaseAdmin.from('identity_names').update({ val_data: value }).eq('id', id)
   
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
