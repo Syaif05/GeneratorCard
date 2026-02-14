@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Trash2, ExternalLink, Calendar, CreditCard, Mail, X, Copy, Check, User, MapPin } from 'lucide-react'
+import StockPusher from '@/components/StockPusher'
 
 export default function HistoryPage() {
   const [history, setHistory] = useState([])
@@ -213,6 +214,16 @@ export default function HistoryPage() {
                               </div>
                           </div>
 
+
+
+                          {/* Stock Pusher Integration */}
+                          <div className="border-t border-slate-100 pt-4">
+                              <StockPusher 
+                                  data={selectedItem} 
+                                  onClose={() => setSelectedItem(null)} 
+                              />
+                          </div>
+
                       </div>
 
                       {/* Modal Footer */}
@@ -226,7 +237,7 @@ export default function HistoryPage() {
                           </button>
                           <button 
                              onClick={() => setSelectedItem(null)}
-                             className="px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-bold text-sm transition-colors shadow-lg shadow-slate-900/10"
+                             className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-bold text-sm transition-colors"
                           >
                              Close
                           </button>
