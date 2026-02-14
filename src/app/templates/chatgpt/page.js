@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw, Save, Check, Copy, AlertTriangle } from 'lucide-r
 import Link from 'next/link'
 import { generateCreditCard } from '../../../lib/cc-generator'
 import { generateGmailDotTrick } from '../../../lib/gmail-generator'
+import { supabase } from '../../../lib/supabase'
 
 // Real Address Data (Gangwon-do)
 const gangwonAddresses = [
@@ -20,18 +21,7 @@ const gangwonAddresses = [
     { city: 'Taebaek-si', zip: '26034', street: 'Taebaek-ro 1024' }
 ]
 
-const koreanNames = [
-    'Kim Min-jun (김민준)', 'Lee Seo-jun (이서준)', 'Park Ji-hu (박지후)', 
-    'Choi Ye-jun (최예준)', 'Jung Do-yun (정도윤)', 'Kang Ha-jun (강하준)',
-    'Yoon Woo-jin (윤우진)', 'Jang Si-woo (장시우)', 'Lim Ju-won (임주원)',
-    'Han Ji-ho (한지호)', 'Kim Seo-yeon (김서연)', 'Lee Soo-ah (이수아)',
-    'Park Seo-yun (박서윤)', 'Choi Ji-a (최지아)', 'Jung Ha-eun (정하은)'
-]
 
-const latinNames = [
-    'Alex Jordan', 'Michael Chen', 'Sarah Smith', 'David Kim', 'Emily Davis', 
-    'James Wilson', 'Jessica Brown', 'Daniel Lee', 'Olivia Taylor', 'Robert Martin'
-]
 
 export default function ChatGPTTemplate() {
   const [loading, setLoading] = useState(false)
@@ -40,10 +30,52 @@ export default function ChatGPTTemplate() {
   const [copied, setCopied] = useState(null)
   
   // Input State
+  // Input State
   const [manualEmail, setManualEmail] = useState('otakaljabar@gmail.com')
-  const [emailStatus, setEmailStatus] = useState(null) // null, 'generated', 'exhausted'
+  const [emailStatus, setEmailStatus] = useState(null)
+
+  // DB Data State
+  const [dbNames, setDbNames] = useState({ latin: [], korean: [] })
+  const [fetchingNames, setFetchingNames] = useState(true)
+
+  useEffect(() => {
+      fetchNames()
+  }, [])
+
+  const fetchNames = async () => {
+      try {
+          const { data, error } = await supabase
+            .from('identity_names')
+            .select('category, val_data')
+          
+          if (error) throw error
+
+          const latin = []
+          const korean = []
+          
+          data.forEach(item => {
+              // Parse Name$Gender
+              const [name, gender] = item.val_data.split('$')
+              if (item.category === 'latin') latin.push(name)
+              if (item.category === 'korean') korean.push(name)
+          })
+
+          setDbNames({ latin, korean })
+      } catch (err) {
+          console.error('Error loading names:', err)
+          // Fallback if empty
+          setDbNames({
+              latin: ['John Doe', 'Jane Smith'],
+              korean: ['Kim Min-jun (김민준)', 'Lee Seo-jun (이서준)']
+          })
+      } finally {
+          setFetchingNames(false)
+      }
+  }
 
   const generateIdentity = async () => {
+    if (fetchingNames) return // Wait for names
+    
     setLoading(true)
     setSaved(false)
     setEmailStatus(null)
@@ -51,45 +83,45 @@ export default function ChatGPTTemplate() {
     // Simulate Delay
     await new Promise(r => setTimeout(r, 600))
 
-    // 1. EMAIL LOGIC (Dot Trick & History Check)
+    // 1. EMAIL LOGIC 
     let email = ''
-    const history = JSON.parse(localStorage.getItem('identity_history') || '[]')
-    const usedEmails = new Set(history.map(item => item.email))
+    
+    // FETCH USED EMAILS FROM DB FOR DOT TRICK CHECK
+    let usedEmails = new Set()
+    const { data: historyData } = await supabase.from('identity_history').select('email')
+    if (historyData) {
+        historyData.forEach(h => usedEmails.add(h.email))
+    }
 
     let baseEmail = manualEmail.trim()
     if (!baseEmail || !baseEmail.includes('@')) {
-        // Fallback Random base if empty
         const randomBase = `user${Math.floor(Math.random() * 9999)}@gmail.com`
         baseEmail = randomBase
     }
 
     try {
-        // Generate ALL possible dot aliases
         const allAliases = generateGmailDotTrick(baseEmail)
-        
-        // Filter out used ones
         const availableAliases = allAliases.filter(alias => !usedEmails.has(alias))
         
         if (availableAliases.length > 0) {
-            // Pick Random valid alias
             email = availableAliases[Math.floor(Math.random() * availableAliases.length)]
             setEmailStatus('generated')
         } else {
-            // Warning: All dot combos used
-            email = baseEmail // Fallback to original
+            email = baseEmail 
             setEmailStatus('exhausted')
         }
-
     } catch (e) {
-        console.error("Dot trick error:", e)
         email = baseEmail
     }
 
-    // 3. NAMES (Separate Account vs Billing)
-    const accountName = latinNames[Math.floor(Math.random() * latinNames.length)]
-    const billingName = koreanNames[Math.floor(Math.random() * koreanNames.length)]
+    // 3. NAMES (From DB)
+    const latins = dbNames.latin.length > 0 ? dbNames.latin : ['Unknown User']
+    const koreans = dbNames.korean.length > 0 ? dbNames.korean : ['Unknown User']
 
-    // 2. PASSWORD (New Logic: FirstName + Random Chars, Min Total 12)
+    const accountName = latins[Math.floor(Math.random() * latins.length)]
+    const billingName = koreans[Math.floor(Math.random() * koreans.length)]
+
+    // 2. PASSWORD 
     const firstName = accountName.split(' ')[0]
     const chars = "0123456789!@#$%^&*?"
     const needed = Math.max(4, 12 - firstName.length)
@@ -100,22 +132,18 @@ export default function ChatGPTTemplate() {
     }
     const password = `${firstName}${suffix}`
 
-    // 4. CARD (BIN 625814260)
+    // 4. CARD 
     const bin = '625814260'
-    const fullDate = new Date()
-    const randYear = Math.floor(Math.random() * 5) + 26 // YY format: 26, 27, 28...
+    const randYear = Math.floor(Math.random() * 5) + 26 
     const yearStr = randYear.toString()
     const month = (Math.floor(Math.random() * 12) + 1).toString().padStart(2, '0')
     const cvv = (Math.floor(Math.random() * 900) + 100).toString()
     
-    // Generate PAN
-    const [cardString] = generateCreditCard(bin, 1) // Returns ["PAN|MM|YYYY|CVV"]
+    const [cardString] = generateCreditCard(bin, 1) 
     const pan = cardString.split('|')[0]
-    
-    // Combined Date
     const combinedDate = `${month}/${yearStr}`
 
-    // 5. ADDRESS (Real Gangwon-do)
+    // 5. ADDRESS 
     const addr = gangwonAddresses[Math.floor(Math.random() * gangwonAddresses.length)]
     
     setData({
@@ -133,7 +161,7 @@ export default function ChatGPTTemplate() {
         },
         address: {
             country: 'South Korea',
-            province: 'Gangwon-do (강원도)', // Locked
+            province: 'Gangwon-do (강원도)', 
             city: addr.city,
             street: addr.street,
             zip: addr.zip
@@ -144,24 +172,33 @@ export default function ChatGPTTemplate() {
     setLoading(false)
   }
 
-  // Generate on first load if no manual email, or wait for user?
-  // Usually templates auto-generate. Let's auto-generate with random base first time.
+  // Generate on load once names are ready
   useEffect(() => {
-      generateIdentity()
-  }, []) // Empty dependency array = run once on mount
+     if (!fetchingNames) {
+         generateIdentity()
+     }
+  }, [fetchingNames]) 
 
-  const handleSave = () => {
+  const handleSave = async () => {
       if (!data) return
       
-      const existing = JSON.parse(localStorage.getItem('identity_history') || '[]')
-      const newItem = {
-          ...data,
-          id: Date.now(),
-          template: 'ChatGPT Pro 1Bulan',
-          status: 'Active'
+      try {
+          const { error } = await supabase.from('identity_history').insert({
+              template_name: 'ChatGPT Pro 1Bulan',
+              email: data.email,
+              password: data.password,
+              account_name: data.accountName,
+              billing_name: data.billingName,
+              address_data: data.address,
+              card_data: data.card
+          })
+
+          if (error) throw error
+          setSaved(true)
+      } catch (err) {
+          console.error('Save error:', err)
+          alert('Failed to save to database')
       }
-      localStorage.setItem('identity_history', JSON.stringify([newItem, ...existing]))
-      setSaved(true)
   }
 
   const copyToClipboard = (text, key) => {

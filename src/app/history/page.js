@@ -4,23 +4,66 @@ import { useState, useEffect } from 'react'
 import { Trash2, ExternalLink, Calendar, CreditCard, Mail, X, Copy, Check, User, MapPin } from 'lucide-react'
 import StockPusher from '@/components/StockPusher'
 
+import { supabase } from '../../lib/supabase'
+
 export default function HistoryPage() {
   const [history, setHistory] = useState([])
   const [selectedItem, setSelectedItem] = useState(null)
   const [copied, setCopied] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const data = JSON.parse(localStorage.getItem('identity_history') || '[]')
-    setHistory(data)
+    fetchHistory()
   }, [])
 
-  const deleteItem = (id, e) => {
-      e?.stopPropagation() // Prevent modal open
-      if (confirm('Are you sure you want to delete this item?')) {
-          const newData = history.filter(item => item.id !== id)
-          setHistory(newData)
-          localStorage.setItem('identity_history', JSON.stringify(newData))
-          if (selectedItem?.id === id) setSelectedItem(null)
+  const fetchHistory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('identity_history')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      
+      // Map DB fields to UI format if needed (DB columns are snake_case)
+      // UI expects: email, password, accountName, billingName, address (json), card (json)
+      // Our generic select returns them as is, which matches if we save them correctly.
+      // But we need to handle CamelCase vs SnakeCase if we migrated.
+      // The SQL script uses snake_case for columns like account_name, billing_name.
+      // So we map them here.
+      const formatted = (data || []).map(item => ({
+          id: item.id,
+          template: item.template_name,
+          email: item.email,
+          password: item.password,
+          accountName: item.account_name,
+          billingName: item.billing_name,
+          address: item.address_data,
+          card: item.card_data,
+          createdAt: item.created_at
+      }))
+      setHistory(formatted)
+    } catch (err) {
+      console.error('Error fetching history:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const deleteItem = async (id, e) => {
+      e?.stopPropagation()
+      if (confirm('Are you sure you want to delete this item from Database?')) {
+          const { error } = await supabase
+            .from('identity_history')
+            .delete()
+            .eq('id', id)
+          
+          if (!error) {
+            setHistory(prev => prev.filter(item => item.id !== id))
+            if (selectedItem?.id === id) setSelectedItem(null)
+          } else {
+            alert('Failed to delete')
+          }
       }
   }
 
@@ -65,7 +108,12 @@ export default function HistoryPage() {
               </span>
           </div>
 
-          {history.length === 0 ? (
+          {loading ? (
+              <div className="text-center py-24">
+                  <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-slate-400">Loading history...</p>
+              </div>
+          ) : history.length === 0 ? (
               <div className="text-center py-24 bg-white rounded-3xl border border-slate-200 border-dashed">
                   <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                       <ExternalLink className="w-6 h-6 text-slate-300" />
